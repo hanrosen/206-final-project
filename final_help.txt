@@ -1,0 +1,10 @@
+Commands available:
+  To Get Theaters Near a Location:
+          Enter in the following order:
+              City (if more than one word, separate with a dash (e.g. new-york)),
+              State Abbreviation (ny),
+              Zip Code (10024):
+
+
+# Table 1 is Movie Info with info such as Name, Rating, Reviews, Movie Length, Date of Release 
+# Table 2 is Theaters and Movie ID which is where the movie is being shown
