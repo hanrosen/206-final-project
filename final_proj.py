@@ -4,6 +4,7 @@ import json
 import sqlite3
 import plotly.plotly as py
 import plotly.graph_objs as go
+from date import date_conversion
 
 DBNAME = "movies.db"
 CACHE_FNAME = 'cache.json'
@@ -129,7 +130,8 @@ def get_movie_info(movie):
                 if "Release Date" in r.text:
                     split = r.text.split(':')
                     date = split[1].strip()
-                    my_movie.append(date)
+                    real_date = date_conversion(date)
+                    my_movie.append(real_date)
                 if "PG-13" in r.text or "G" in r.text or "PG" in r.text or "R" in r.text or "NC-17" in r.text:
                     if 'hr' in r.text:
                         if 'min' in r.text:
@@ -139,11 +141,6 @@ def get_movie_info(movie):
                                 runtime = convert_to_minutes(split[1])
                                 my_movie.append(mpaa_rating)
                                 my_movie.append(runtime)
-                # if "Genres" in r.text:
-                #     genres = []
-                #     for g in r.text.split()[1:]:
-                #         genres.append(g)
-                #     my_movie.append(genres)
             except:
                 print('Error but we dont care')
     except:
@@ -213,7 +210,8 @@ def init_db():
     'Metacritic Rating' INTEGER,
     'User Rating' INTEGER,
     'Release Date' TEXT,
-    'MPAA Rating' TEXT
+    'MPAARating' TEXT,
+    'Runtime' INTEGER
     );
     '''
     cur.execute(statement)
@@ -247,13 +245,6 @@ def update_theater(lst):
         statement += 'SET State = ? '
         statement += 'WHERE Name = ? '
         cur.execute(statement, insertion)
-
-        # insertion = (state_dict[theater_and_state[x]], x)
-        # statement = 'UPDATE Theaters '
-        # statement += 'SET StateId = ? '
-        # statement += 'WHERE Name = ? '
-        # cur.execute(statement)
-
 
     conn.commit()
     conn.close()
@@ -305,12 +296,12 @@ def insert_movie_info(theaters):
         v = dct_of_info_results[x]
         # print(v)
         try:
-            insertion = (None, v[0], v[1], v[2], v[3], v[4])
+            insertion = (None, v[0], v[1], v[2], v[3], v[4], v[5])
             statement = "INSERT INTO 'Movies' "
-            statement += 'VALUES (?, ?, ?, ?, ?, ?)'
+            statement += 'VALUES (?, ?, ?, ?, ?, ?, ?)'
             cur.execute(statement, insertion)
         except:
-            print('data not provided for: '.format(x))
+            pass
     conn.commit()
     conn.close()
 
@@ -360,9 +351,7 @@ def ratings_comparison():
         color='rgb(191, 32, 21)',
         line=dict(
             color='rgb(191, 32, 21)',
-            width=1.5),
-        ),
-        )
+            width=1.5)),)
 
     trace2 = go.Bar(
         x=names,
@@ -372,20 +361,104 @@ def ratings_comparison():
             color='rgb(255, 173, 51)',
             line=dict(
                 color='rgb(255, 173, 51)',
-                width=1.5),
-            ),
-            )
+                width=1.5),),)
 
     data = [trace1, trace2]
-    layout = go.Layout(barmode='group')
-        # xaxis=dict(tickangle=-45),
-        # width = 1000)
+    layout = go.Layout(xaxis=dict(tickangle=-45), barmode='group')
 
     fig = go.Figure(data=data, layout=layout)
     py.plot(fig, filename='grouped-bar-direct-labels')
 
     conn.commit()
     conn.close()
+
+def mpaa_comparison():
+    conn = sqlite3.connect(DBNAME)
+    cur = conn.cursor()
+
+    statement = '''
+    SELECT MPAARating, [COUNT](MPAARating)
+    FROM Movies
+    WHERE MPAARating NOT NULL
+    GROUP BY MPAARating
+    '''
+    cur.execute(statement)
+
+    ratings = []
+    count = []
+    colors = ['#5DA5DA', '#FAA43A', '#F17CB0', 'DECF3F', '#F15854']
+
+    for row in cur:
+        ratings.append(row[0])
+        count.append(row[1])
+    print(ratings)
+    print(count)
+
+    labels = ratings
+    values = count
+
+    trace = go.Pie(labels=labels, values=values,
+                   hoverinfo='label+value', textinfo='label+percent',
+                   textfont=dict(size=20),
+                   marker=dict(colors=colors))
+
+
+    py.plot([trace], filename='basic_pie_chart')
+
+    conn.commit()
+    conn.close()
+
+def runtime_comparison():
+    conn = sqlite3.connect(DBNAME)
+    cur = conn.cursor()
+
+    statement = '''
+    SELECT Name, Runtime
+    FROM Movies
+    WHERE Runtime NOT NULL
+    ORDER BY Runtime
+    '''
+    cur.execute(statement)
+
+    names = []
+    runtime = []
+
+    for row in cur:
+        names.append(row[0])
+        runtime.append(row[1])
+
+    trace2 = go.Bar(
+        x=names,
+        y=runtime,
+        marker=dict(
+            color='rgb(47, 152, 168)'))
+
+    data = [trace2]
+    layout = go.Layout(
+        title='Movies By Runtime',
+        xaxis=dict(
+            tickfont=dict(
+                size=14,
+                color='rgb(107, 107, 107)'
+            )
+        ),
+        yaxis=dict(
+            title='Runtime(Minutes)',
+            titlefont=dict(
+                size=14,
+                color='rgb(107, 107, 107)'
+            ),
+            tickfont=dict(
+                size=14,
+                color='rgb(107, 107, 107)'
+            )))
+
+    fig = go.Figure(data=data, layout=layout)
+    py.plot(fig, filename='text-hover-bar')
+
+    conn.commit()
+    conn.close()
+
 
 def load_help_text():
     with open('final_help.txt') as f:
@@ -432,43 +505,24 @@ def interactive_prompt():
                     print("\nMust get theaters first\n")
 
             if "compare" in response:
-                try:
-                    ratings_comparison()
-                except:
-                    print('\nMust first fill database\n')
-            # if "movies" in response:
-            #     if len(theaters) == 0:
-            #         print("Get theater list first")
-            #     movies = []
-            #     try:
-            #         item = theaters[int(words_lst[1])-1]
-            #         results = get_movies_for_theater(item)
-            #         for r in results:
-            #             movies.append(r)
-            #         print("\nMovies Showing at {}: ".format(item.strip()))
-            #         item = 1
-            #         for m in results:
-            #             print(item, m)
-            #             item += 1
-            #     except:
-            #         print('Must have theater list before requesting movies OR Must enter valid number of movie')
-            #         continue
-            #
-            #
-            # if "info" in response:
-            #     info = []
-            #     try:
-            #         i = movies[int(words_lst[1])-1]
-            #         # print(i)
-            #         new_results = get_movie_info(i)
-            #         print("\nInfo for {}: ".format(i.strip()))
-            #         item = 1
-            #         for m in new_results:
-            #             print(item, m)
-            #             item += 1
-            #     except:
-            #         print("Invalid Command. Try Again")
+                if words_lst[1] == "mpaa":
+                    try:
+                        mpaa_comparison()
+                    except:
+                        print('\nMust first fill database\n')
+                if words_lst[1] == "reviews":
+                    try:
+                        ratings_comparison()
+                    except:
+                        print('\nMust first fill database\n')
+                if words_lst[1] == "runtime":
+                    try:
+                        runtime_comparison()
+                    except:
+                        print('\nMust first fill database\n')
 
+                else:
+                    print("\nEnter proper keyword to compare\n")
 
 if __name__ == "__main__":
     init_db()
