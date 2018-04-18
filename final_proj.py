@@ -5,6 +5,7 @@ import sqlite3
 import plotly.plotly as py
 import plotly.graph_objs as go
 from date import date_conversion
+import datetime
 
 DBNAME = "movies.db"
 CACHE_FNAME = 'cache.json'
@@ -32,7 +33,6 @@ def make_request_using_cache(baseurl, params= {}, auth = None):
         return CACHE_DICTION[unique_ident]
 
     else:
-        # Make the request and cache the new data
         print("Making a request for new data...")
         resp = requests.get(baseurl, params, auth=auth)
         CACHE_DICTION[unique_ident] = resp.text
@@ -49,12 +49,10 @@ t_lst = []
 theater_and_state = {}
 
 def get_theaters(city = None, state = None, zip_code = None):
-# use zip code from interactive prompt to make a request to fandango in order to get a list of theaters at that time
     place_url = "https://www.moviefone.com/showtimes/{}-{}/{}/theaters/".format(city, state, zip_code)
     page_text = make_request_using_cache(place_url)
     page_soup = BeautifulSoup(page_text, 'html.parser')
     theater_lst = page_soup.find_all('div', class_='theater')
-    # print(theater_lst)
 
     for t in theater_lst:
         theater_name = t.find('a').text
@@ -69,7 +67,6 @@ def get_theaters(city = None, state = None, zip_code = None):
     for t in t_lst:
         if t not in theater_and_state:
             theater_and_state[t] = state_split
-    # print(theater_and_state)
     return t_lst
 
 movie_and_link = {}
@@ -87,9 +84,7 @@ def get_movies_for_theater(theater):
         final_title_link = title.find('a')['href']
         movie_and_link[final_title] = final_title_link
         movie_lst.append(final_title)
-        # print(final_title)
     return movie_lst
-    # movie_lst=[]
 
 def convert_to_minutes(runtime):
     runtime_split = runtime.split()
@@ -142,7 +137,7 @@ def get_movie_info(movie):
                                 my_movie.append(mpaa_rating)
                                 my_movie.append(runtime)
             except:
-                print('Error but we dont care')
+                pass
     except:
         my_movie.append(movie)
         meta = None
@@ -155,9 +150,6 @@ def get_movie_info(movie):
         my_movie.append(mpaa_rating)
         runtime = None
         my_movie.append(runtime)
-        # genres = None
-        # my_movie.append(genres)
-
 
     database_info.append(my_movie)
     return my_movie
@@ -207,11 +199,11 @@ def init_db():
     CREATE TABLE IF NOT EXISTS 'Movies' (
     'Id' INTEGER PRIMARY KEY AUTOINCREMENT,
     'Name' TEXT,
-    'Metacritic Rating' INTEGER,
-    'User Rating' INTEGER,
     'Release Date' TEXT,
     'MPAARating' TEXT,
-    'Runtime' INTEGER
+    'Runtime' INTEGER,
+    'Metacritic Rating' INTEGER,
+    'User Rating' INTEGER
     );
     '''
     cur.execute(statement)
@@ -282,21 +274,14 @@ def insert_movie_info(theaters):
             # print(inst)
                 if inst not in lst_of_movies:
                     lst_of_movies.append(inst)
-    # print(lst_of_movies)
     for l in lst_of_movies:
         info_results = get_movie_info(l)
         if l not in dct_of_info_results:
             dct_of_info_results[l] = info_results
-                # if inst not in dct_of_info_results:
-                #     info_results = get_movie_info(inst)
-                #     # print(info_results)
-                #     # print(info_results)
-                #     dct_of_info_results[inst] = info_results
     for x in dct_of_info_results:
         v = dct_of_info_results[x]
-        # print(v)
         try:
-            insertion = (None, v[0], v[1], v[2], v[3], v[4], v[5])
+            insertion = (None, v[0], v[3], v[4], v[5], v[1], v[2])
             statement = "INSERT INTO 'Movies' "
             statement += 'VALUES (?, ?, ?, ?, ?, ?, ?)'
             cur.execute(statement, insertion)
@@ -331,6 +316,7 @@ def ratings_comparison():
     SELECT Name, "Metacritic Rating", "User Rating"
     FROM Movies
     WHERE "Metacritic Rating" NOT NULL
+    ORDER BY "Metacritic Rating"
     '''
     cur.execute(statement)
 
@@ -339,9 +325,10 @@ def ratings_comparison():
     user = []
 
     for row in cur:
-        names.append(row[0])
-        metacritic.append(row[1])
-        user.append(row[2])
+        if type(row[1]) == int:
+            names.append(row[0])
+            metacritic.append(row[1])
+            user.append(row[2])
 
     trace1 = go.Bar(
     x=names,
@@ -364,7 +351,8 @@ def ratings_comparison():
                 width=1.5),),)
 
     data = [trace1, trace2]
-    layout = go.Layout(xaxis=dict(tickangle=-45), barmode='group')
+    layout = go.Layout(title='Metacritic Rating vs. User Rating',
+            xaxis=dict(tickangle=-45), barmode='group')
 
     fig = go.Figure(data=data, layout=layout)
     py.plot(fig, filename='grouped-bar-direct-labels')
@@ -379,7 +367,7 @@ def mpaa_comparison():
     statement = '''
     SELECT MPAARating, [COUNT](MPAARating)
     FROM Movies
-    WHERE MPAARating NOT NULL
+    WHERE MPAARating NOT NULL AND "Metacritic Rating" NOT NULL
     GROUP BY MPAARating
     '''
     cur.execute(statement)
@@ -391,8 +379,6 @@ def mpaa_comparison():
     for row in cur:
         ratings.append(row[0])
         count.append(row[1])
-    print(ratings)
-    print(count)
 
     labels = ratings
     values = count
@@ -402,8 +388,12 @@ def mpaa_comparison():
                    textfont=dict(size=20),
                    marker=dict(colors=colors))
 
+    layout = go.Layout(
+        title='Count of Movies with Each MPAA Rating')
 
-    py.plot([trace], filename='basic_pie_chart')
+    data = [trace]
+    fig = go.Figure(data=data, layout=layout)
+    py.plot(fig, filename='basic_pie_chart')
 
     conn.commit()
     conn.close()
@@ -431,7 +421,7 @@ def runtime_comparison():
         x=names,
         y=runtime,
         marker=dict(
-            color='rgb(47, 152, 168)'))
+            color='rgb(52, 135, 55)'))
 
     data = [trace2]
     layout = go.Layout(
@@ -440,8 +430,9 @@ def runtime_comparison():
             tickfont=dict(
                 size=14,
                 color='rgb(107, 107, 107)'
-            )
-        ),
+            ),
+            tickangle=-45),
+
         yaxis=dict(
             title='Runtime(Minutes)',
             titlefont=dict(
@@ -459,6 +450,43 @@ def runtime_comparison():
     conn.commit()
     conn.close()
 
+def to_unix_time():
+    conn = sqlite3.connect(DBNAME)
+    cur = conn.cursor()
+
+    statement = '''
+    SELECT Name, "Release Date"
+    FROM Movies
+    WHERE "Release Date" NOT NULL
+    ORDER BY "Release Date"
+    '''
+
+    d = []
+    n = []
+    cur.execute(statement)
+    for row in cur:
+        if "2018" in row[1]:
+            d.append(row[1])
+            n.append(row[0])
+
+    trace = go.Scatter(
+                    x=d,
+                    y=n,
+                    name = "Name",
+                    line = dict(color = '#EA718A'),
+                    opacity = 0.8)
+
+    data = [trace]
+    layout = dict(
+        title = "Movies Released in 2018",
+        xaxis = dict(
+            range = ['2018-01-01','2018-12-31']))
+
+    fig = dict(data=data, layout=layout)
+    py.plot(fig, filename = "Manually Set Range")
+
+    conn.commit()
+    conn.close()
 
 def load_help_text():
     with open('final_help.txt') as f:
@@ -484,7 +512,6 @@ def interactive_prompt():
                     city = words_lst[1]
                     state = words_lst[2]
                     zip_code = words_lst[3]
-                    # print(words_lst)
                     results = get_theaters(city, state, zip_code)
                     for r in results:
                         theaters.append(r)
@@ -505,24 +532,32 @@ def interactive_prompt():
                     print("\nMust get theaters first\n")
 
             if "compare" in response:
-                if words_lst[1] == "mpaa":
-                    try:
-                        mpaa_comparison()
-                    except:
-                        print('\nMust first fill database\n')
-                if words_lst[1] == "reviews":
-                    try:
-                        ratings_comparison()
-                    except:
-                        print('\nMust first fill database\n')
-                if words_lst[1] == "runtime":
-                    try:
-                        runtime_comparison()
-                    except:
-                        print('\nMust first fill database\n')
-
-                else:
-                    print("\nEnter proper keyword to compare\n")
+                try:
+                    t = theaters
+                    if words_lst[1] == "mpaa":
+                        try:
+                            mpaa_comparison()
+                        except:
+                            print('\nMust first fill database\n')
+                    elif words_lst[1] == "ratings":
+                        try:
+                            ratings_comparison()
+                        except:
+                            print('\nMust first fill database\n')
+                    elif words_lst[1] == "runtime":
+                        try:
+                            runtime_comparison()
+                        except:
+                            print('\nMust first fill database\n')
+                    elif words_lst[1] == "release":
+                        try:
+                            to_unix_time()
+                        except:
+                            print('\nMust first fill database\n')
+                    else:
+                        print("\nEnter proper keyword to compare\n")
+                except:
+                    print("\nEnter Valid Compare Command(mpaa, runtime, ratings, release) and Ensure Data is in Database:\n")
 
 if __name__ == "__main__":
     init_db()
