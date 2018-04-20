@@ -369,10 +369,17 @@ def mpaa_comparison():
     conn = sqlite3.connect(DBNAME)
     cur = conn.cursor()
 
+    # statement = '''
+    # SELECT MPAARating, [COUNT](MPAARating)
+    # FROM Movies
+    # WHERE MPAARating NOT NULL AND "Metacritic Rating" NOT NULL
+    # GROUP BY MPAARating
+    # '''
+    # cur.execute(statement)
     statement = '''
     SELECT MPAARating, [COUNT](MPAARating)
     FROM Movies
-    WHERE MPAARating NOT NULL AND "Metacritic Rating" NOT NULL
+    WHERE MPAARating = "PG-13" OR MPAARating ="PG" OR MPAARating = "R" OR MPAARating = "G" OR MPAARating = "Not Yet Rated"
     GROUP BY MPAARating
     '''
     cur.execute(statement)
@@ -502,7 +509,7 @@ def interactive_prompt():
         help_text = load_help_text()
         response = ''
         while response != 'exit':
-            response = input('Enter a Command or help for instructions. When you have entered at least 6 locations, enter "create" to create your database of movies: ')
+            response = input('Enter a Command or help for instructions: ')
             words_lst = response.split()
             if response == 'help':
                 print(help_text)

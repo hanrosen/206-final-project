@@ -1,10 +1,17 @@
-Commands available:
-  To Get Theaters Near a Location:
-          Enter in the following order:
-              City (if more than one word, separate with a dash (e.g. new-york)),
-              State Abbreviation (ny),
-              Zip Code (10024):
+User Gu
+to get theaters in area:
+  input: 'theaters' + 'city' + 'state' + 'zip'
+     ex: theaters livingston nj 07039
+  returns: list of theaters
+if city has more than one word: enter as "word1-word2"
 
+Once you have desired number of theaters:
+  input: 'create'
+  this will create database
 
-# Table 1 is Movie Info with info such as Name, Rating, Reviews, Movie Length, Date of Release 
-# Table 2 is Theaters and Movie ID which is where the movie is being shown
+Once database is created and populated, you can compare data with plotly
+  input: 'compare' + option
+    options: mpaa (compares movies based on MPAA Rating)
+             ratings (compares moives based on metacritic ratings vs user ratings)
+             runtime (compares movies based on runtime)
+             release (compares movies based on release date)

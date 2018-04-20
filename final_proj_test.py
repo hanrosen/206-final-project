@@ -63,14 +63,12 @@ class TestProcessing(unittest.TestCase):
     def test_runtime(self):
 
         results = runtime_comparison()
-        print(results)
         self.assertIn(86, results)
         self.assertTrue(len(results) > 5)
         self.assertTrue(type(results) == list)
 
     def test_mpaa(self):
         results = mpaa_comparison()
-        print(results)
         self.assertIn('PG-13', results)
         self.assertTrue(len(results) > 0)
         self.assertTrue(type(results) == list)
