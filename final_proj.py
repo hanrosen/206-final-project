@@ -48,7 +48,12 @@ theater_and_link = {}
 t_lst = []
 theater_and_state = {}
 
-def get_theaters(city = None, state = None, zip_code = None):
+def get_theaters(response):
+    address = response.split()
+    city = address[1]
+    state = address[2]
+    zip_code = address[3]
+
     place_url = "https://www.moviefone.com/showtimes/{}-{}/{}/theaters/".format(city, state, zip_code)
     page_text = make_request_using_cache(place_url)
     page_soup = BeautifulSoup(page_text, 'html.parser')
@@ -397,6 +402,7 @@ def mpaa_comparison():
 
     conn.commit()
     conn.close()
+    return ratings
 
 def runtime_comparison():
     conn = sqlite3.connect(DBNAME)
@@ -443,12 +449,12 @@ def runtime_comparison():
                 size=14,
                 color='rgb(107, 107, 107)'
             )))
-
     fig = go.Figure(data=data, layout=layout)
     py.plot(fig, filename='text-hover-bar')
 
     conn.commit()
     conn.close()
+    return runtime
 
 def to_unix_time():
     conn = sqlite3.connect(DBNAME)
@@ -509,10 +515,10 @@ def interactive_prompt():
                     print('Please Enter a Valid Command')
                 try:
                     theaters = []
-                    city = words_lst[1]
-                    state = words_lst[2]
-                    zip_code = words_lst[3]
-                    results = get_theaters(city, state, zip_code)
+                    # city = words_lst[1]
+                    # state = words_lst[2]
+                    # zip_code = words_lst[3]
+                    results = get_theaters(response)
                     for r in results:
                         theaters.append(r)
                     print('\nTheaters Near {}: '.format(words_lst[3]))
@@ -525,9 +531,9 @@ def interactive_prompt():
 
             if 'create' in response:
                 try:
-                    insert_theater(theaters)
-                    update_theater(theaters)
-                    insert_movie_info(theaters)
+                    insert_theater(results)
+                    update_theater(results)
+                    insert_movie_info(results)
                 except:
                     print("\nMust get theaters first\n")
 
