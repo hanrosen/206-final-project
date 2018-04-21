@@ -1,4 +1,4 @@
-User Gu
+User Guide
 to get theaters in area:
   input: 'theaters' + 'city' + 'state' + 'zip'
      ex: theaters livingston nj 07039
